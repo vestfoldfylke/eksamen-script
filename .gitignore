@@ -23,6 +23,7 @@ appsettings.json
 local.settings.json
 *.local.settings.json
 *.settings.json
+testing.js
 
 node_modules
 dist
