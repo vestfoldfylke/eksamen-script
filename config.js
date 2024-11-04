@@ -15,6 +15,7 @@ module.exports = {
         api_key: process.env.MAIL_KEY
     },
     misc: {
-        groupID: process.env.NETTPSERRE_EKSAMEN_GROUP_ID
+        groupID: process.env.NETTPSERRE_EKSAMEN_GROUP_ID,
+        serverPath: process.env.SERVER_PATH.toString()
     }
 }
