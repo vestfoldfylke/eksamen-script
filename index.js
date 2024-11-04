@@ -9,17 +9,31 @@
 
 (async () => {
     const { graphRequest } = require('./graph/call-graph')
-    const { logger } = require('@vtfk/logger')
     const xlsx = require('xlsx')
     const fs = require('fs')
     const { misc, email } = require('./config')
     const { default: axios } = require('axios')
+    const { logger } = require('@vtfk/logger')
 
-    const isTest = true
+    let isTest = false
     const logPrefix = 'checkIfPersonIsStudent'
 
+    // Read passing arguments
+    const args = process.argv.slice(2)
+    if(args.length < 1) {
+        isTest = false
+    } else if(args[0] === 'prod') {
+        isTest = false
+    } else if(args[0] === 'test') {
+        isTest = true
+    } 
+    else {
+       logger('error', [logPrefix, `Invalid argument. Please provide a env value [prod/test]`])
+       process.exit(1)
+    }
+
     // Find all xlsx and xls files in the folder
-    const files = fs.readdirSync('C:/Users/Robin Ellingsen/scrips/powershell/eksamen/testfiler')
+    const files = fs.readdirSync(misc.serverPath).filter(file => file.endsWith('.xlsx') || file.endsWith('.xls'))
  
     let numberOfStudentsRemoved = 0
     let numberOfStudentsAdded = 0
@@ -90,7 +104,7 @@
         const emailBody = {
             to: email.to,
             from: email.from,
-            subject: `${email.subject} - ${today} / ${tomorrow}`,
+            subject: isTest ? `TEST! - ${email.subject} - ${today} / ${tomorrow}` : `${email.subject} - ${today} / ${tomorrow}`,
             text: `Hei, i dag ble det meldt ut ${numberOfStudentsRemoved} elever og inn ${numberOfStudentsAdded} elever. ${numberOfStudnetsNotStudents} elever var ikke elever hos oss.`,
             html: 
             `
@@ -129,7 +143,7 @@
 
     for (const file of files) {
         // Read the file
-        const readFile = xlsx.readFile(`C:/Users/Robin Ellingsen/scrips/powershell/eksamen/testfiler/${file}`)
+        const readFile = xlsx.readFile(`${misc.serverPath}/${file}`)
         const sheets = readFile.SheetNames
         for (const sheet of sheets) {
             const temp = xlsx.utils.sheet_to_json(readFile.Sheets[sheet], { raw: false })
@@ -162,7 +176,12 @@
                     try {
                         const result = await getGraphData(obj['Fødselsnummer'])
                         if(result.value.length > 0) {
-                            console.log(result.value[0].id) // Bruk dette til å fjerne personen fra gruppen
+                            if(isTest === false) {
+                                logger('info', [logPrefix, `Person is a student, removing ${removeSSN(obj['Fødselsnummer'])} from the group`])
+                                console.log(result.value[0].id) // Bruk dette til å fjerne personen fra gruppen
+                            } else {
+                                logger('info', [logPrefix, `TEST - Person is a student, removing ${removeSSN(obj['Fødselsnummer'])} from the group`])
+                            }
                             studentObj.Eksamensparti = obj['Eksamensparti']
                             studentObj.Navn = `${obj['Fornavn']} ${obj['Etternavn']}`
                             studentObj.Type = 'Fjernet fra gruppen'
@@ -170,6 +189,11 @@
                             // Push the object to the array
                             studentsArray.push(studentObj)
                         } else {
+                            if(isTest === false) {
+                                logger('info', [logPrefix, `Person is not a student`, removeSSN(obj['Fødselsnummer'])])
+                            } else {
+                                logger('info', [logPrefix, `TEST - Person is not a student`, removeSSN(obj['Fødselsnummer'])])
+                            }
                             studentObj.Eksamensparti = obj['Eksamensparti']
                             studentObj.Navn = `${obj['Fornavn']} ${obj['Etternavn']}`
                             studentObj.Type = 'Ikke elev hos oss'
@@ -187,8 +211,12 @@
                     try {
                         const result = await getGraphData(obj['Fødselsnummer'])
                         if(result.value.length > 0) {
-                            logger('info', [logPrefix, `Person is a student, adding ${removeSSN(obj['Fødselsnummer'])} to the group`])
-                            console.log(result.value[0].id) // Bruk dette til å legge til personen i gruppen
+                            if(isTest === false) {
+                                logger('info', [logPrefix, `Person is a student, adding ${removeSSN(obj['Fødselsnummer'])} to the group`])
+                                console.log(result.value[0].id) // Bruk dette til å legge til personen i gruppen
+                            } else {
+                                logger('info', [logPrefix, `TEST - Person is a student, adding ${removeSSN(obj['Fødselsnummer'])} to the group`])
+                            }
                             studentObj.Eksamensparti = obj['Eksamensparti']
                             studentObj.Navn = `${obj['Fornavn']} ${obj['Etternavn']}`
                             studentObj.Type = 'Lagt til gruppen'
@@ -196,7 +224,11 @@
                             // Push the object to the array
                             studentsArray.push(studentObj)
                         } else {
-                            logger('info', [logPrefix, `Person is not a student`, removeSSN(obj['Fødselsnummer'])])
+                            if(isTest === false) {
+                                logger('info', [logPrefix, `Person is not a student`, removeSSN(obj['Fødselsnummer'])])
+                            } else {
+                                logger('info', [logPrefix, `TEST - Person is not a student`, removeSSN(obj['Fødselsnummer'])])
+                            }
                             studentObj.Eksamensparti = obj['Eksamensparti']
                             studentObj.Navn = `${obj['Fornavn']} ${obj['Etternavn']}`
                             studentObj.Type = 'Ikke elev hos oss'
@@ -218,7 +250,7 @@
             logger('info', [logPrefix, `No future dates found in the file, moving the file to the finished folder.`])
             try {
                 logger('info', [logPrefix, `Moving ${file} to finished folder`])
-                fs.renameSync(`C:/Users/Robin Ellingsen/scrips/powershell/eksamen/testfiler/${file}`, `C:/Users/Robin Ellingsen/scrips/powershell/eksamen/finished/${file}`)
+                // fs.renameSync(`${misc.serverPath}/${file}`, `${misc.serverPath}/finished/${file}`)
             } catch (error) {
                 logger('error', [logPrefix, `Error while trying to move file to finished folder`, error])
             }
@@ -226,7 +258,7 @@
     }
     try {
         // Write studentsArray to a file
-        fs.writeFileSync(`C:/Users/Robin Ellingsen/scrips/powershell/eksamen/getAllstudents/logs/student-logs-${today}-${tomorrow}.json`, JSON.stringify(studentsArray, null, 2))
+        fs.writeFileSync(`${misc.serverPath}/${misc.scriptType}_script/logs/student-logs-${today}-${tomorrow}.json`, JSON.stringify(studentsArray, null, 2))
     } catch (error) {
         logger('error', [logPrefix, `Error while trying to write to file`, error])
     }

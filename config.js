@@ -16,6 +16,7 @@ module.exports = {
     },
     misc: {
         groupID: process.env.NETTPSERRE_EKSAMEN_GROUP_ID,
-        serverPath: process.env.SERVER_PATH.toString()
+        serverPath: process.env.SERVER_PATH.toString(),
+        scriptType: process.env.SCRIPT_TYPE
     }
 }
