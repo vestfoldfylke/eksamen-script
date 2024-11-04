@@ -24,6 +24,7 @@ local.settings.json
 *.local.settings.json
 *.settings.json
 testing.js
+test.js
 
 node_modules
 dist
