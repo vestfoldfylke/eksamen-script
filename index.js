@@ -250,7 +250,7 @@
             logger('info', [logPrefix, `No future dates found in the file, moving the file to the finished folder.`])
             try {
                 logger('info', [logPrefix, `Moving ${file} to finished folder`])
-                // fs.renameSync(`${misc.serverPath}/${file}`, `${misc.serverPath}/finished/${file}`)
+                fs.renameSync(`${misc.serverPath}/${file}`, `${misc.serverPath}/finished/${file}`)
             } catch (error) {
                 logger('error', [logPrefix, `Error while trying to move file to finished folder`, error])
             }
@@ -258,7 +258,8 @@
     }
     try {
         // Write studentsArray to a file
-        fs.writeFileSync(`${misc.serverPath}/${misc.scriptType}_script/logs/student-logs-${today}-${tomorrow}.json`, JSON.stringify(studentsArray, null, 2))
+        logger('info', [logPrefix, `Writing logs to file`])
+        fs.writeFileSync(`${misc.serverPath}/logs/student-logs-${today}-${tomorrow}.json`, JSON.stringify(studentsArray, null, 2))
     } catch (error) {
         logger('error', [logPrefix, `Error while trying to write to file`, error])
     }
