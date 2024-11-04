@@ -145,6 +145,8 @@
         // Read the file
         const readFile = xlsx.readFile(`${misc.serverPath}/${file}`)
         const sheets = readFile.SheetNames
+        // Reset the state for each file!
+        isAnyDateInFuture = false
         for (const sheet of sheets) {
             const temp = xlsx.utils.sheet_to_json(readFile.Sheets[sheet], { raw: false })
             // Total number of students temp.length
