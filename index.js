@@ -28,13 +28,20 @@
         isTest = true
     } 
     else {
-       logger('error', [logPrefix, `Invalid argument. Please provide a env value [prod/test]`])
-       process.exit(1)
+        logger('error', [logPrefix, `Invalid argument. Please provide a env value [prod/test]`])
+        // Write the error to a file 
+        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+        process.exit(1)
     }
 
     // Find all xlsx and xls files in the folder
     const files = fs.readdirSync(misc.serverPath).filter(file => file.endsWith('.xlsx') || file.endsWith('.xls'))
- 
+    // If no files are found, exit the function
+    if(files.length === 0) {
+        logger('info', [logPrefix, `No files found in the folder`])
+        process.exit(1)
+    }
+
     let numberOfStudentsRemoved = 0
     let numberOfStudentsAdded = 0
     let numberOfStudentsWithInvalidSSN = 0
@@ -67,7 +74,9 @@
         try {
             const request = await graphRequest(url, 'DELETE', 'null', 'eventual')
         } catch (error) {
-            console.log(error)
+            // Write the error to a file 
+            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+            logger('error', [logPrefix, `Error while trying to remove member from the group`, error])
         }
 
     }
@@ -77,7 +86,9 @@
         try {
             const request = await graphRequest(url, 'POST', { '@odata.id': `https://graph.microsoft.com/v1.0/directoryObjects/${id}` }, 'eventual')
         } catch (error) {
-            console.log(error)
+            // Write the error to a file 
+            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+            logger('error', [logPrefix, `Error while trying to add member to the group`, error])
         }
     }
     // Function for checking for future dates
@@ -136,8 +147,9 @@
         try {
             await axios.post(`${email.api_url}/mail`, emailBody, { headers: { 'x-functions-key': `${email.api_key}` } })
         } catch (error) {
+            // Write the error to a file 
+            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
             logger('error', [logPrefix, `Error while trying to send email`, error])
-            console.log(error)
         }
     }
 
@@ -204,7 +216,8 @@
                             studentsArray.push(studentObj)
                         }
                     } catch (error) {
-                        console.log(error)
+                        // Write the error to a file 
+                        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
                         logger('error', [logPrefix, `Error while trying to get data from the graph API`, error])
                     } 
                 } else if (dateConverted === tomorrow) {
@@ -239,7 +252,8 @@
                             studentsArray.push(studentObj)
                         }
                     } catch (error) {
-                        console.log(error)
+                        // Write the error to a file 
+                        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
                         logger('error', [logPrefix, `Error while trying to get data from the graph API`, error])
                     }
                 }
@@ -254,6 +268,8 @@
                 logger('info', [logPrefix, `Moving ${file} to finished folder`])
                 fs.renameSync(`${misc.serverPath}/${file}`, `${misc.serverPath}/finished/${file}`)
             } catch (error) {
+                // Write the error to a file 
+                fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
                 logger('error', [logPrefix, `Error while trying to move file to finished folder`, error])
             }
         }
@@ -263,6 +279,8 @@
         logger('info', [logPrefix, `Writing logs to file`])
         fs.writeFileSync(`${misc.serverPath}/logs/student-logs-${today}-${tomorrow}.json`, JSON.stringify(studentsArray, null, 2))
     } catch (error) {
+        // Write the error to a file 
+        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
         logger('error', [logPrefix, `Error while trying to write to file`, error])
     }
     
@@ -271,6 +289,8 @@
         logger('info', [logPrefix, `Sending email`])
         sendEmail(studentsArray)
     } catch (error) {
+        // Write the error to a file 
+        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
         logger('error', [logPrefix, `Error while trying to send email`, error])
     }
 })()
