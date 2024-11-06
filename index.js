@@ -75,7 +75,7 @@
             const request = await graphRequest(url, 'DELETE', 'null', 'eventual')
         } catch (error) {
             // Write the error to a file 
-            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: `Error while trying to remove member from the group`, error: error }, null, 2))
             logger('error', [logPrefix, `Error while trying to remove member from the group`, error])
         }
 
@@ -87,7 +87,7 @@
             const request = await graphRequest(url, 'POST', { '@odata.id': `https://graph.microsoft.com/v1.0/directoryObjects/${id}` }, 'eventual')
         } catch (error) {
             // Write the error to a file 
-            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: `Error while trying to add member with id: ${id} to the group`, error: error }, null, 2))
             logger('error', [logPrefix, `Error while trying to add member to the group`, error])
         }
     }
@@ -99,7 +99,6 @@
         day = parseInt(day)
         month = parseInt(month)
         year = parseInt(year)
-        // Add +1 to the day
         // Create a new date object with the given date
         let givenDate = new Date(`${year}.${month}.${day}`)
         // Create a new date object with todays date
@@ -191,8 +190,14 @@
                         const result = await getGraphData(obj['Fødselsnummer'])
                         if(result.value.length > 0) {
                             if(isTest === false) {
-                                logger('info', [logPrefix, `Person is a student, removing ${removeSSN(obj['Fødselsnummer'])} from the group`])
-                                console.log(result.value[0].id) // Bruk dette til å fjerne personen fra gruppen
+                                try {
+                                    logger('info', [logPrefix, `Person is a student, removing ${removeSSN(obj['Fødselsnummer'])} from the group`])
+                                    await removeMember(result.value[0].id)
+                                } catch (error) {
+                                    // Write the error to a file 
+                                    fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+                                    logger('error', [logPrefix, `Error while trying to remove member from the group`, error])
+                                }
                             } else {
                                 logger('info', [logPrefix, `TEST - Person is a student, removing ${removeSSN(obj['Fødselsnummer'])} from the group`])
                             }
@@ -227,8 +232,14 @@
                         const result = await getGraphData(obj['Fødselsnummer'])
                         if(result.value.length > 0) {
                             if(isTest === false) {
-                                logger('info', [logPrefix, `Person is a student, adding ${removeSSN(obj['Fødselsnummer'])} to the group`])
-                                console.log(result.value[0].id) // Bruk dette til å legge til personen i gruppen
+                                try {
+                                    logger('info', [logPrefix, `Person is a student, adding ${removeSSN(obj['Fødselsnummer'])} to the group`])
+                                    await addMember(result.value[0].id)
+                                } catch (error) {
+                                    // Write the error to a file 
+                                    fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+                                    logger('error', [logPrefix, `Error while trying to add member to the group`, error])
+                                }
                             } else {
                                 logger('info', [logPrefix, `TEST - Person is a student, adding ${removeSSN(obj['Fødselsnummer'])} to the group`])
                             }
