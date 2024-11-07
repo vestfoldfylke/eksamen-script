@@ -75,7 +75,6 @@
     const getGraphData = async (ssn) => {
         let url = `https://graph.microsoft.com/v1.0/users/?$count=true&$select=id,displayName,userPrincipalName,customSecurityAttributes&$filter=customSecurityAttributes/IDM/SSN eq '${ssn}'`
         const data = await graphRequest(url, 'GET', 'null', 'eventual')
-        // console.log(data)
         return data
     }
 
@@ -115,8 +114,6 @@
         // Create a new date object with todays date
         const todayDate = new Date(today.split('.').reverse().join('-'))
         // Check if the given date is in the future
-        console.log(givenDate, todayDate)
-        console.log(givenDate > todayDate)
         if(givenDate > todayDate) {
             isAnyDateInFuture = true
         }
@@ -317,7 +314,7 @@
     try {
         // Write studentsArray to a file if the array is not empty
         if(studentsArray.length === 0) {
-            logger('info', [logPrefix, `No students found`])
+            logger('info', [logPrefix, `No students found, skip writing logs to file`])
         } else {
             logger('info', [logPrefix, `Writing logs to file`])
             fs.writeFileSync(`${misc.serverPath}/logs/student-logs-${today}-${tomorrow}.json`, JSON.stringify(studentsArray, null, 2))
@@ -330,8 +327,13 @@
     
     // Send email
     try {
-        logger('info', [logPrefix, `Sending email`])
-        sendEmail(studentsArray)
+        // Send mail only if the array is not empty
+        if(studentsArray.length === 0) {
+            logger('info', [logPrefix, `No students found, skip sending email`])
+        } else {
+            logger('info', [logPrefix, `Sending email`])
+            sendEmail(studentsArray)
+        }
     } catch (error) {
         // Write the error to a file 
         fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to send email' ,error: error }, null, 2))
