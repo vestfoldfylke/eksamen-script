@@ -18,6 +18,22 @@
     let isTest = false
     const logPrefix = 'checkIfPersonIsStudent'
 
+    // Get todays date on this format: DD.MM.YYYY
+    let today = new Date().toLocaleDateString('nb-NO')
+    // Get tomorrows date on this format: DD.MM.YYYY
+    let tomorrow = new Date(new Date().setDate(new Date().getDate() + 1)).toLocaleDateString('nb-NO')
+
+    // Add a zero in front of the day if the day is less than 10
+    const addZero = (i) => {
+        if (i < 10) {
+            i = "0" + i
+        }
+        return i
+    }
+
+    today = today.split('.').map(addZero).join('.')
+    tomorrow = tomorrow.split('.').map(addZero).join('.')
+
     // Read passing arguments
     const args = process.argv.slice(2)
     if(args.length < 1) {
@@ -49,11 +65,6 @@
     let totalNumberOfStudents = 0
     let studentsArray = []
     let isAnyDateInFuture = false
-
-    // Get todays date on this format: DD.MM.YYYY
-    const today = new Date().toLocaleDateString('nb-NO')
-    // Get tomorrows date on this format: DD.MM.YYYY
-    const tomorrow = new Date(new Date().setDate(new Date().getDate() + 1)).toLocaleDateString('nb-NO')
 
     // Functions for removing the last 5 digits of the SSN and replacing them with '*****'
     const removeSSN = (ssn) => {
@@ -104,7 +115,8 @@
         // Create a new date object with todays date
         const todayDate = new Date(today.split('.').reverse().join('-'))
         // Check if the given date is in the future
-        
+        console.log(givenDate, todayDate)
+        console.log(givenDate > todayDate)
         if(givenDate > todayDate) {
             isAnyDateInFuture = true
         }
@@ -147,7 +159,7 @@
             await axios.post(`${email.api_url}/mail`, emailBody, { headers: { 'x-functions-key': `${email.api_key}` } })
         } catch (error) {
             // Write the error to a file 
-            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to send email', error: error }, null, 2))
             logger('error', [logPrefix, `Error while trying to send email`, error])
         }
     }
@@ -181,8 +193,25 @@
                 }
 
                 // For each row find the key 'Eksamensdato' and check if it is today or tomorrow
-                const dateConverted = new Date(obj['Eksamensdato']).toLocaleDateString('nb-NO')
-                if (dateConverted === today) {
+                const providedDate = obj['Eksamensdato']
+                // Check if prividedDate is a valid date, is not empty
+                if(providedDate === '' || providedDate === undefined || providedDate === null) {
+                    logger('warn', [logPrefix, `Date is empty`, obj['Eksamensdato']])
+                    return // Exit the function if the date is empty
+                }
+                // Check if the date is on the correct format DD.MM.YYYY
+                
+                try {
+                    const dateArray = providedDate.split('.')
+                    if(dateArray.length !== 3) {
+                        logger('warn', [logPrefix, `Date is not on the correct format`, obj['Eksamensdato']])
+                        return // Exit the function if the date is not on the correct format
+                    }
+                } catch (error) {
+                    logger('error', [logPrefix, `Error while trying to split the date`, error])
+                }
+               
+                if (providedDate === today) {
                     logger('info', [logPrefix, `The exam was today, checking if ${removeSSN(obj['Fødselsnummer'])} is a student`])
                     // Remove the students from the group if they are in the group
                     // Check if the person is a student or privatist and add the result to the object
@@ -195,7 +224,7 @@
                                     await removeMember(result.value[0].id)
                                 } catch (error) {
                                     // Write the error to a file 
-                                    fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+                                    fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to remove member from the group', error: error }, null, 2))
                                     logger('error', [logPrefix, `Error while trying to remove member from the group`, error])
                                 }
                             } else {
@@ -222,10 +251,10 @@
                         }
                     } catch (error) {
                         // Write the error to a file 
-                        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+                        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to get data from the graph API', error: error }, null, 2))
                         logger('error', [logPrefix, `Error while trying to get data from the graph API`, error])
                     } 
-                } else if (dateConverted === tomorrow) {
+                } else if (providedDate === tomorrow) {
                     // Add the students to the group if they are not in the group
                     logger('info', [logPrefix, `The exam is tomorrow, checking if ${removeSSN(obj['Fødselsnummer'])} is a student`])
                     try {
@@ -237,7 +266,7 @@
                                     await addMember(result.value[0].id)
                                 } catch (error) {
                                     // Write the error to a file 
-                                    fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+                                    fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to add member to the group', error: error }, null, 2))
                                     logger('error', [logPrefix, `Error while trying to add member to the group`, error])
                                 }
                             } else {
@@ -264,12 +293,12 @@
                         }
                     } catch (error) {
                         // Write the error to a file 
-                        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+                        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to get data from the graph API', error: error }, null, 2))
                         logger('error', [logPrefix, `Error while trying to get data from the graph API`, error])
                     }
                 }
                 // Check if the date is in the future
-                isFuture(dateConverted)
+                isFuture(providedDate)
             }
         }
         if(!isAnyDateInFuture) {
@@ -280,18 +309,22 @@
                 fs.renameSync(`${misc.serverPath}/${file}`, `${misc.serverPath}/finished/${file}`)
             } catch (error) {
                 // Write the error to a file 
-                fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+                fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to move file to finished folder', error: error }, null, 2))
                 logger('error', [logPrefix, `Error while trying to move file to finished folder`, error])
             }
         }
     }
     try {
-        // Write studentsArray to a file
-        logger('info', [logPrefix, `Writing logs to file`])
-        fs.writeFileSync(`${misc.serverPath}/logs/student-logs-${today}-${tomorrow}.json`, JSON.stringify(studentsArray, null, 2))
+        // Write studentsArray to a file if the array is not empty
+        if(studentsArray.length === 0) {
+            logger('info', [logPrefix, `No students found`])
+        } else {
+            logger('info', [logPrefix, `Writing logs to file`])
+            fs.writeFileSync(`${misc.serverPath}/logs/student-logs-${today}-${tomorrow}.json`, JSON.stringify(studentsArray, null, 2))
+        }
     } catch (error) {
         // Write the error to a file 
-        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to write to file', error: error }, null, 2))
         logger('error', [logPrefix, `Error while trying to write to file`, error])
     }
     
@@ -301,7 +334,7 @@
         sendEmail(studentsArray)
     } catch (error) {
         // Write the error to a file 
-        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to send email' ,error: error }, null, 2))
         logger('error', [logPrefix, `Error while trying to send email`, error])
     }
 })()
