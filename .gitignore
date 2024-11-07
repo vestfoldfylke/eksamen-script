@@ -33,6 +33,8 @@ dist
 .python_packages/
 
 # Python Environments
+*.env
+*.env.*
 .env
 .venv
 env/
