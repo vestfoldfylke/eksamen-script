@@ -83,6 +83,8 @@
     const removeMember = async (id) => {
         const url = `https://graph.microsoft.com/v1.0/groups/${misc.groupID}/members/${id}/$ref`
         try {
+            // Wait a few MS before sending the request
+            await new Promise(resolve => setTimeout(resolve, 500))
             const request = await graphRequest(url, 'DELETE', 'null', 'eventual')
         } catch (error) {
             // Write the error to a file
@@ -96,6 +98,8 @@
     const addMember = async (id) => {
         const url = `https://graph.microsoft.com/v1.0/groups/${misc.groupID}/members/$ref`
         try {
+            // Wait a few MS before sending the request
+            await new Promise(resolve => setTimeout(resolve, 500))
             const request = await graphRequest(url, 'POST', { '@odata.id': `https://graph.microsoft.com/v1.0/directoryObjects/${id}` }, 'eventual')
         } catch (error) {
             // Write the error to a file
