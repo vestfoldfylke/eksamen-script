@@ -10,6 +10,8 @@ Opprett en appregistration med følgende API permissions
 |---|---|---|
 |User.Read.All|Application|Read all users' full profiles|
 |CustomSecAttributeAssignment.Read.All|Application|Read custom security attribute assignments|
+|Group.ReadWrite.All|Application|Read and write all groups|
+|GroupMember.ReadWrite.All|Application|Read and write all group memberships|
 
 ### Optional 
 Følgende variabler i .env er valgfritt. 
