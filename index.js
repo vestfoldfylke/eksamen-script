@@ -46,7 +46,7 @@
     else {
         logger('error', [logPrefix, `Invalid argument. Please provide a env value [prod/test]`])
         // Write the error to a file 
-        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2))
+        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2), { flag: 'a' })
         process.exit(1)
     }
 
@@ -63,6 +63,7 @@
     let numberOfStudentsWithInvalidSSN = 0
     let numberOfStudnetsNotStudents = 0
     let totalNumberOfStudents = 0
+    let totlaNumberOfErrors = 0
     let studentsArray = []
     let isAnyDateInFuture = false
 
@@ -84,8 +85,9 @@
         try {
             const request = await graphRequest(url, 'DELETE', 'null', 'eventual')
         } catch (error) {
-            // Write the error to a file 
-            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: `Error while trying to remove member from the group`, error: error }, null, 2))
+            // Write the error to a file
+            totlaNumberOfErrors++ 
+            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: `Error while trying to remove member from the group`, error: error }, null, 2), { flag: 'a' })
             logger('error', [logPrefix, `Error while trying to remove member from the group`, error])
         }
 
@@ -96,8 +98,9 @@
         try {
             const request = await graphRequest(url, 'POST', { '@odata.id': `https://graph.microsoft.com/v1.0/directoryObjects/${id}` }, 'eventual')
         } catch (error) {
-            // Write the error to a file 
-            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: `Error while trying to add member with id: ${id} to the group`, error: error }, null, 2))
+            // Write the error to a file
+            totlaNumberOfErrors++ 
+            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: `Error while trying to add member with id: ${id} to the group`, error: error }, null, 2), { flag: 'a' })
             logger('error', [logPrefix, `Error while trying to add member to the group`, error])
         }
     }
@@ -130,7 +133,8 @@
             <p>I dag ble <strong>${totalNumberOfStudents}</strong> kandidater sjekket</p>
             <p>Det ble meldt ut <strong>${numberOfStudentsRemoved}</strong> elever</p>
             <p>Det ble meldt inn <strong>${numberOfStudentsAdded}</strong> elever</p>
-            <p><strong>${numberOfStudnetsNotStudents}</strong> elever var ikke elever hos oss</p> <br>
+            <p><strong>${numberOfStudnetsNotStudents}</strong> elever var ikke elever hos oss</p>
+            <p><strong>${totlaNumberOfErrors}</strong> feil skjedde under kjøringen av scriptet, sjekk log filen på server eller papertrail!</p> <br>
             <table border="1" cellpadding="5" cellspacing="0">
             <thead>
                 <tr>
@@ -155,8 +159,9 @@
         try {
             await axios.post(`${email.api_url}/mail`, emailBody, { headers: { 'x-functions-key': `${email.api_key}` } })
         } catch (error) {
-            // Write the error to a file 
-            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to send email', error: error }, null, 2))
+            // Write the error to a file
+            totlaNumberOfErrors++
+            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to send email', error: error }, null, 2), { flag: 'a' })
             logger('error', [logPrefix, `Error while trying to send email`, error])
         }
     }
@@ -190,13 +195,27 @@
                 }
 
                 // For each row find the key 'Eksamensdato' and check if it is today or tomorrow
-                const providedDate = obj['Eksamensdato']
+                let providedDate = obj['Eksamensdato']
                 // Check if prividedDate is a valid date, is not empty
                 if(providedDate === '' || providedDate === undefined || providedDate === null) {
                     logger('warn', [logPrefix, `Date is empty`, obj['Eksamensdato']])
                     return // Exit the function if the date is empty
                 }
                 // Check if the date is on the correct format DD.MM.YYYY
+
+                // If the date is provided in this format MM/DD/YYYY, split the date and convert it to DD.MM.YYYY
+                const dateArray = providedDate.split('/')
+                if(dateArray.length === 3) {
+                    // Add a zero in front of the day if the day is less than 10
+                    if(dateArray[1] < 10) {
+                        dateArray[1] = `0${dateArray[1]}`
+                    }
+                    // Make sure that the year is on the correct format
+                    if(dateArray[2].length === 2) {
+                        dateArray[2] = `20${dateArray[2]}`
+                    }
+                    providedDate = `${dateArray[1]}.${dateArray[0]}.${dateArray[2]}`
+                }
                 
                 try {
                     const dateArray = providedDate.split('.')
@@ -205,6 +224,7 @@
                         return // Exit the function if the date is not on the correct format
                     }
                 } catch (error) {
+                    totlaNumberOfErrors++
                     logger('error', [logPrefix, `Error while trying to split the date`, error])
                 }
                
@@ -220,8 +240,9 @@
                                     logger('info', [logPrefix, `Person is a student, removing ${removeSSN(obj['Fødselsnummer'])} from the group`])
                                     await removeMember(result.value[0].id)
                                 } catch (error) {
-                                    // Write the error to a file 
-                                    fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to remove member from the group', error: error }, null, 2))
+                                    // Write the error to a file
+                                    totlaNumberOfErrors++ 
+                                    fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to remove member from the group', error: error }, null, 2), { flag: 'a' })
                                     logger('error', [logPrefix, `Error while trying to remove member from the group`, error])
                                 }
                             } else {
@@ -247,8 +268,9 @@
                             studentsArray.push(studentObj)
                         }
                     } catch (error) {
-                        // Write the error to a file 
-                        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to get data from the graph API', error: error }, null, 2))
+                        // Write the error to a file
+                        totlaNumberOfErrors++
+                        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to get data from the graph API', error: error }, null, 2), { flag: 'a' })
                         logger('error', [logPrefix, `Error while trying to get data from the graph API`, error])
                     } 
                 } else if (providedDate === tomorrow) {
@@ -262,8 +284,9 @@
                                     logger('info', [logPrefix, `Person is a student, adding ${removeSSN(obj['Fødselsnummer'])} to the group`])
                                     await addMember(result.value[0].id)
                                 } catch (error) {
-                                    // Write the error to a file 
-                                    fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to add member to the group', error: error }, null, 2))
+                                    // Write the error to a file
+                                    totlaNumberOfErrors++
+                                    fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to add member to the group', error: error }, null, 2), { flag: 'a' })
                                     logger('error', [logPrefix, `Error while trying to add member to the group`, error])
                                 }
                             } else {
@@ -289,8 +312,9 @@
                             studentsArray.push(studentObj)
                         }
                     } catch (error) {
-                        // Write the error to a file 
-                        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to get data from the graph API', error: error }, null, 2))
+                        // Write the error to a file
+                        totlaNumberOfErrors++ 
+                        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to get data from the graph API', error: error }, null, 2), { flag: 'a' })
                         logger('error', [logPrefix, `Error while trying to get data from the graph API`, error])
                     }
                 }
@@ -305,8 +329,9 @@
                 logger('info', [logPrefix, `Moving ${file} to finished folder`])
                 fs.renameSync(`${misc.serverPath}/${file}`, `${misc.serverPath}/finished/${file}`)
             } catch (error) {
-                // Write the error to a file 
-                fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to move file to finished folder', error: error }, null, 2))
+                // Write the error to a file
+                totlaNumberOfErrors++
+                fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to move file to finished folder', error: error }, null, 2), { flag: 'a' })
                 logger('error', [logPrefix, `Error while trying to move file to finished folder`, error])
             }
         }
@@ -320,8 +345,9 @@
             fs.writeFileSync(`${misc.serverPath}/logs/student-logs-${today}-${tomorrow}.json`, JSON.stringify(studentsArray, null, 2))
         }
     } catch (error) {
-        // Write the error to a file 
-        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to write to file', error: error }, null, 2))
+        // Write the error to a file
+        totlaNumberOfErrors++
+        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to write to file', error: error }, null, 2), { flag: 'a' })
         logger('error', [logPrefix, `Error while trying to write to file`, error])
     }
     
@@ -335,8 +361,9 @@
             sendEmail(studentsArray)
         }
     } catch (error) {
-        // Write the error to a file 
-        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to send email' ,error: error }, null, 2))
+        // Write the error to a file
+        totlaNumberOfErrors++
+        fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to send email' ,error: error }, null, 2), { flag: 'a' })
         logger('error', [logPrefix, `Error while trying to send email`, error])
     }
 })()
