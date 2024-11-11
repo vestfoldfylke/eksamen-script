@@ -47,7 +47,7 @@
         logger('error', [logPrefix, `Invalid argument. Please provide a env value [prod/test]`])
         // Write the error to a file 
         fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ error: 'Invalid argument. Please provide a env value [prod/test]' }, null, 2), { flag: 'a' })
-        process.exit(1)
+        return
     }
 
     // Find all xlsx and xls files in the folder
@@ -55,7 +55,7 @@
     // If no files are found, exit the function
     if(files.length === 0) {
         logger('info', [logPrefix, `No files found in the folder`])
-        process.exit(1)
+        return
     }
 
     let numberOfStudentsRemoved = 0
