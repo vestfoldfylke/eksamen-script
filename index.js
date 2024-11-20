@@ -65,7 +65,19 @@
     let totalNumberOfStudents = 0
     let totlaNumberOfErrors = 0
     let studentsArray = []
+    let studentsErrorArray = []
     let isAnyDateInFuture = false
+
+    
+    // Create an object for the students with errors
+    let studentErrorObj = {
+        Fødselsnummer: undefined, // 11 digits
+        BrukerId: undefined, // User ID
+        Navn: undefined, // Navn på Kandidaten
+        Type: undefined, // Error Type
+        Eksamensparti: undefined, // Eksamensparti
+        Error: undefined // Error message
+    }
 
     // Functions for removing the last 5 digits of the SSN and replacing them with '*****'
     const removeSSN = (ssn) => {
@@ -80,32 +92,50 @@
     }
 
     // Function for removing students from the group
-    const removeMember = async (id) => {
+    const removeMember = async (id, user) => {
         const url = `https://graph.microsoft.com/v1.0/groups/${misc.groupID}/members/${id}/$ref`
         try {
             // Wait a few MS before sending the request
             await new Promise(resolve => setTimeout(resolve, 500))
-            const request = await graphRequest(url, 'DELETE', 'null', 'eventual')
+            const request = await graphRequest(url, 'DELETE', 'null', null)
         } catch (error) {
+            studentErrorObj.Fødselsnummer = removeSSN(user['Fødselsnummer'])
+            studentErrorObj.BrukerId = id
+            studentErrorObj.Navn = `${user['Fornavn']} ${user['Etternavn']}`
+            studentErrorObj.Eksamensparti = user['Eksamensparti']
+            studentErrorObj.Type = 'Klarte ikke å fjerne elev fra gruppen'
+            studentErrorObj.Error = `Error while trying to remove member with id: ${id} from the group`
+            
+            studentsErrorArray.push(studentErrorObj)
+
             // Write the error to a file
             totlaNumberOfErrors++ 
-            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: `Error while trying to remove member from the group`, error: error }, null, 2), { flag: 'a' })
-            logger('error', [logPrefix, `Error while trying to remove member from the group`, error])
+            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: `Error while trying to remove member with id: ${id} from the group`, error: error }, null, 2), { flag: 'a' })
+            logger('error', [logPrefix, `Error while trying to remove member with id: ${id} from the group`, error])
         }
 
     }
     // Function for adding students to the group
-    const addMember = async (id) => {
+    const addMember = async (id, user) => {
         const url = `https://graph.microsoft.com/v1.0/groups/${misc.groupID}/members/$ref`
         try {
             // Wait a few MS before sending the request
             await new Promise(resolve => setTimeout(resolve, 500))
-            const request = await graphRequest(url, 'POST', { '@odata.id': `https://graph.microsoft.com/v1.0/directoryObjects/${id}` }, 'eventual')
+            const request = await graphRequest(url, 'POST', { '@odata.id': `https://graph.microsoft.com/v1.0/directoryObjects/${id}` }, null)
         } catch (error) {
+            studentErrorObj.Fødselsnummer = removeSSN(user['Fødselsnummer'])
+            studentErrorObj.BrukerId = id
+            studentErrorObj.Navn = `${user['Fornavn']} ${user['Etternavn']}`
+            studentErrorObj.Eksamensparti = user['Eksamensparti']
+            studentErrorObj.Type = 'Klarte ikke legge til elev i gruppen'
+            studentErrorObj.Error = `Error while trying to add member with id: ${id} to the group`
+            
+            studentsErrorArray.push(studentErrorObj)
+
             // Write the error to a file
             totlaNumberOfErrors++ 
             fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: `Error while trying to add member with id: ${id} to the group`, error: error }, null, 2), { flag: 'a' })
-            logger('error', [logPrefix, `Error while trying to add member to the group`, error])
+            logger('error', [logPrefix, `Error while trying to add member with id: ${id} to the group`, error])
         }
     }
     // Function for checking for future dates
@@ -155,6 +185,53 @@
                     <td>${student.Navn}</td>
                     <td>${student.Type}</td>
                     <td>${student.Eksamensparti}</td>
+                </tr>
+                `).join('')}
+            </tbody>
+            </table>`
+        }
+        try {
+            await axios.post(`${email.api_url}/mail`, emailBody, { headers: { 'x-functions-key': `${email.api_key}` } })
+        } catch (error) {
+            // Write the error to a file
+            totlaNumberOfErrors++
+            fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to send email', error: error }, null, 2), { flag: 'a' })
+            logger('error', [logPrefix, `Error while trying to send email`, error])
+        }
+    }
+
+    const sendErrorEmail = async (studentsErrorArray) => {
+        const emailBody = {
+            to: email.to,
+            from: email.from,
+            subject: isTest ? `TEST! - ${email.subject} - ${today} / ${tomorrow}` : `${email.subject} - ${today} / ${tomorrow}`,
+            text: `Hei, i dag skjedde det ${totlaNumberOfErrors} feil under kjøringen av scriptet. Mer informasjon finner du i log filen på server eller papertrail!`,
+            html: 
+            `
+            <p> Det skjedde <strong>${totlaNumberOfErrors}</strong> feil under kjøringen av scriptet!</p>
+            <p> Disse feilene må håndteres manuelt. </p> <br>
+            <p> Gruppen elevene ble forsøkt lagt til og fjernet fra er: <strong>${misc.groupID}</strong> </p> <br>
+            <p> I tabellen under finner du informasjon om feilene som skjedde under kjøringen av scriptet. </p> <br>
+            <table border="1" cellpadding="5" cellspacing="0">
+            <thead>
+                <tr>
+                <th>Fødselsnummer</th>
+                <th>BrukerId</th>
+                <th>Navn</th>
+                <th>Type</th>
+                <th>Eksamensparti</th>
+                <th>Error</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${studentsErrorArray.map(student => `
+                <tr style="background-color: white;">
+                    <td>${student.Fødselsnummer}</td>
+                    <td>${student.BrukerId}</td>
+                    <td>${student.Navn}</td>
+                    <td>${student.Type}</td>
+                    <td>${student.Eksamensparti}</td>
+                    <td>${student.Error}</td>
                 </tr>
                 `).join('')}
             </tbody>
@@ -242,7 +319,7 @@
                             if(isTest === false) {
                                 try {
                                     logger('info', [logPrefix, `Person is a student, removing ${removeSSN(obj['Fødselsnummer'])} from the group`])
-                                    await removeMember(result.value[0].id)
+                                    await removeMember(result.value[0].id, obj)
                                 } catch (error) {
                                     // Write the error to a file
                                     totlaNumberOfErrors++ 
@@ -273,7 +350,6 @@
                         }
                     } catch (error) {
                         // Write the error to a file
-                        totlaNumberOfErrors++
                         fs.writeFileSync(`${misc.serverPath}/logs/error-${today}-${tomorrow}.json`, JSON.stringify({ errorMsg: 'Error while trying to get data from the graph API', error: error }, null, 2), { flag: 'a' })
                         logger('error', [logPrefix, `Error while trying to get data from the graph API`, error])
                     } 
@@ -286,7 +362,7 @@
                             if(isTest === false) {
                                 try {
                                     logger('info', [logPrefix, `Person is a student, adding ${removeSSN(obj['Fødselsnummer'])} to the group`])
-                                    await addMember(result.value[0].id)
+                                    await addMember(result.value[0].id, obj)
                                 } catch (error) {
                                     // Write the error to a file
                                     totlaNumberOfErrors++
@@ -363,6 +439,10 @@
         } else {
             logger('info', [logPrefix, `Sending email`])
             sendEmail(studentsArray)
+            // Send error email if there are any errors
+            if(studentsErrorArray.length > 0) {
+                sendErrorEmail(studentsErrorArray)
+            }
         }
     } catch (error) {
         // Write the error to a file
