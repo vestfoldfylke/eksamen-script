@@ -273,7 +273,13 @@
         isAnyDateInFuture = false
         for (const sheet of sheets) {
             const temp = xlsx.utils.sheet_to_json(readFile.Sheets[sheet], { raw: false })
-            // Total number of students temp.length
+            // Sort the array of objects by date ('Eksamensdato')
+            temp.sort((a, b) => {
+                const dateA = new Date(a['Eksamensdato'].split('.').reverse().join('-'));
+                const dateB = new Date(b['Eksamensdato'].split('.').reverse().join('-'));
+                return dateA - dateB;
+            });
+
             // In the array of objects, in the object find the key 'Fødslesnummer' or 'SSN or 'FNR' and push the value to the data array
             for (const obj of temp) {
                 totalNumberOfStudents++
@@ -449,7 +455,7 @@
         logger('error', [logPrefix, `Error while trying to write to file`, error])
     }
     
-    // Send email
+    // Send emails
     try {
         // Send mail only if the array is not empty
         if(studentsArray.length === 0) {
