@@ -93,6 +93,15 @@
 
     // Function for removing students from the group
     const removeMember = async (id, user) => {
+        // Clear the studentErrorObj
+        studentErrorObj = {
+            Fødselsnummer: undefined, // 11 digits
+            BrukerId: undefined, // User ID
+            Navn: undefined, // Navn på Kandidaten
+            Type: undefined, // Error Type
+            Eksamensparti: undefined, // Eksamensparti
+            Error: undefined // Error message
+        }
         const url = `https://graph.microsoft.com/v1.0/groups/${misc.groupID}/members/${id}/$ref`
         try {
             // Wait a few MS before sending the request
@@ -117,6 +126,15 @@
     }
     // Function for adding students to the group
     const addMember = async (id, user) => {
+         // Clear the studentErrorObj
+         studentErrorObj = {
+            Fødselsnummer: undefined, // 11 digits
+            BrukerId: undefined, // User ID
+            Navn: undefined, // Navn på Kandidaten
+            Type: undefined, // Error Type
+            Eksamensparti: undefined, // Eksamensparti
+            Error: undefined // Error message
+        }
         const url = `https://graph.microsoft.com/v1.0/groups/${misc.groupID}/members/$ref`
         try {
             // Wait a few MS before sending the request
@@ -255,7 +273,13 @@
         isAnyDateInFuture = false
         for (const sheet of sheets) {
             const temp = xlsx.utils.sheet_to_json(readFile.Sheets[sheet], { raw: false })
-            // Total number of students temp.length
+            // Sort the array of objects by date ('Eksamensdato')
+            temp.sort((a, b) => {
+                const dateA = new Date(a['Eksamensdato'].split('.').reverse().join('-'));
+                const dateB = new Date(b['Eksamensdato'].split('.').reverse().join('-'));
+                return dateA - dateB;
+            });
+
             // In the array of objects, in the object find the key 'Fødslesnummer' or 'SSN or 'FNR' and push the value to the data array
             for (const obj of temp) {
                 totalNumberOfStudents++
@@ -431,7 +455,7 @@
         logger('error', [logPrefix, `Error while trying to write to file`, error])
     }
     
-    // Send email
+    // Send emails
     try {
         // Send mail only if the array is not empty
         if(studentsArray.length === 0) {
