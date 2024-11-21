@@ -93,6 +93,15 @@
 
     // Function for removing students from the group
     const removeMember = async (id, user) => {
+        // Clear the studentErrorObj
+        studentErrorObj = {
+            Fødselsnummer: undefined, // 11 digits
+            BrukerId: undefined, // User ID
+            Navn: undefined, // Navn på Kandidaten
+            Type: undefined, // Error Type
+            Eksamensparti: undefined, // Eksamensparti
+            Error: undefined // Error message
+        }
         const url = `https://graph.microsoft.com/v1.0/groups/${misc.groupID}/members/${id}/$ref`
         try {
             // Wait a few MS before sending the request
@@ -117,6 +126,15 @@
     }
     // Function for adding students to the group
     const addMember = async (id, user) => {
+         // Clear the studentErrorObj
+         studentErrorObj = {
+            Fødselsnummer: undefined, // 11 digits
+            BrukerId: undefined, // User ID
+            Navn: undefined, // Navn på Kandidaten
+            Type: undefined, // Error Type
+            Eksamensparti: undefined, // Eksamensparti
+            Error: undefined // Error message
+        }
         const url = `https://graph.microsoft.com/v1.0/groups/${misc.groupID}/members/$ref`
         try {
             // Wait a few MS before sending the request
